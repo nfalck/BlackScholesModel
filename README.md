@@ -1,12 +1,10 @@
 # Black Scholes Model
 
----
 
 Streamlit dashboard of call and option prices, greeks and implied volatility using Black Scholes Model and Newton Raphson Method with live inputs from Yahoo Finance
 
 ## Features
 
----
 ![image](demoimage.png)
 - Retrieve live underlying price and risk-free rate from Yahoo Finance by selecting ticker
 - Option to manually input underlying price, time and risk-free rate
@@ -18,14 +16,12 @@ Streamlit dashboard of call and option prices, greeks and implied volatility usi
 
 ## Demo
 
----
 
 Try out the demo at: https://nfalckblackscholesmodel.streamlit.app/
 
 
 ## Run Locally
 
----
 
 1. **Clone the Repository**: 
    - Open your terminal or command prompt.
@@ -50,7 +46,6 @@ Try out the demo at: https://nfalckblackscholesmodel.streamlit.app/
 
 ## Resources
 
----
 
 - [Code for Newton Raphson Method by QuantPy](https://www.youtube.com/watch?v=mPgVeazeq5U)
 - Options, Futures and Other Derivatives by Hull and Basu
