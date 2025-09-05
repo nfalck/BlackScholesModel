@@ -33,7 +33,7 @@ st.markdown(
 # Sidebar for User Inputs
 with st.sidebar:
     st.header("Mode")
-    advanced = st.toggle("Advanced Mode (manual S, T, r)", value=False)
+    advanced = st.toggle("Advanced Mode (manual S, T)", value=False)
     manual_r = st.toggle("Manually input risk-free rate", value=False)
 
     st.header("Inputs")
