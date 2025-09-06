@@ -87,7 +87,7 @@ st.write("---")
 # Black-Scholes Calculation
 try:
     vol = float(vol_guess)
-    out_single = bs.quote(S=S, T=T, r=r, K=K, vol=vol)
+    out = bs.quote(S=S, T=T, r=r, K=K, vol=vol)
 except Exception as e:
     st.error(f"Pricing error: {e}")
     st.stop()
@@ -110,7 +110,7 @@ with c2:
         f"""
             <div class="value-card call-card">
                 <div class="value-label">CALL Value</div>
-                <div class="value-num">${out_single['prices']['call']:.2f}</div>
+                <div class="value-num">${out['prices']['call']:.2f}</div>
             </div>
             """,
         unsafe_allow_html=True,
@@ -121,7 +121,7 @@ with c3:
         f"""
             <div class="value-card put-card">
                 <div class="value-label">PUT Value</div>
-                <div class="value-num">${out_single['prices']['put']:.2f}</div>
+                <div class="value-num">${out['prices']['put']:.2f}</div>
             </div>
             """,
         unsafe_allow_html=True,
@@ -138,8 +138,8 @@ for greek, symbol in [
 ]:
     c1, c2, c3 = st.columns([1,1,1])
     c1.markdown(f"**{greek}**  \n{symbol}")
-    c2.metric("Call", f"{out_single['greeks']['call'][greek]:.3f}")
-    c3.metric("Put",  f"{out_single['greeks']['put'][greek]:.3f}")
+    c2.metric("Call", f"{out['greeks']['call'][greek]:.3f}")
+    c3.metric("Put",  f"{out['greeks']['put'][greek]:.3f}")
 
 st.write("---")
 # Visualization of Inputs for Implied Volatility Calculation
