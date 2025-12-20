@@ -38,7 +38,7 @@ with st.sidebar:
 
     st.header("Inputs")
     ticker = st.text_input("Ticker", "AAPL").strip().upper()
-    expiry = st.text_input("Expiry (YYYY-MM-DD)", "2025-12-19").strip()
+    expiry = st.text_input("Expiry (YYYY-MM-DD)", "2026-12-19").strip()
     K = st.number_input("Strike K", value=200.0, min_value=0.01, step=1.0, format="%.2f")
     vol_guess = st.number_input("Volatility σ (annual, decimal)", value=0.25, min_value=0.0001, step=0.01, format="%.4f")
 
