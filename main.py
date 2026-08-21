@@ -130,18 +130,90 @@ with c3:
 
 # Greeks Visualization
 st.subheader("Greeks")
-for greek, symbol in [
-    ("Delta", "$\\Delta$"),
-    ("Gamma", "$\\Gamma$"),
-    ("Vega", "$\\nu$"),
-    ("Theta", "$\\Theta$"),
-    ("Rho", "$\\rho$")
-]:
-    c1, c2, c3 = st.columns([1,1,1])
-    c1.markdown(f"**{greek}**  \n{symbol}")
-    c2.metric("Call", f"{out['greeks']['call'][greek]:.3f}")
-    c3.metric("Put",  f"{out['greeks']['put'][greek]:.3f}")
+reporting = out["reporting_greeks"]
+contract_multiplier = 100
 
+for greek, symbol, unit in [
+    ("Delta", "$\\Delta$", "per $1 underlying move"),
+    ("Gamma", "$\\Gamma$", "Δ change per $1 move"),
+    ("Vega", "$\\nu$", "per +1 vol point"),
+    ("Theta", "$\\Theta$", "per day"),
+    ("Rho", "$\\rho$", "per +1% rate move")
+]:
+    call_value = reporting["call"][greek]
+    put_value = reporting["put"][greek]
+
+    # captions for greek values per contract
+    def contract_caption(greek: str, value: float, multiplier: int = 100) -> str:
+        contract_value = value * multiplier
+
+        if greek == "Delta":
+            return (
+                f"≈ \\${contract_value:,.2f} per contract "
+                f"for a \\$1 underlying move"
+            )
+
+        elif greek == "Gamma":
+            return (
+                f"≈ {contract_value:.4f} "
+                f"Δ per contract"
+            )
+
+        elif greek == "Vega":
+            return (
+                f"≈ ${contract_value:,.2f} per contract "
+                f"for +1 vol point"
+            )
+
+        elif greek == "Theta":
+            return (
+                f"≈ ${contract_value:,.2f} per contract/day"
+            )
+
+        elif greek == "Rho":
+            return (
+                f"≈ ${contract_value:,.2f} per contract "
+                f"for +1% rates"
+            )
+
+    c1, c2, c3 = st.columns([1,1.5,1.5])
+
+    with c1:
+        st.markdown(
+            f"""
+            **{greek}**
+            {symbol}
+            <small>{unit}</small>
+            """, unsafe_allow_html=True
+        )
+
+    with c2:
+        st.metric(
+            "Call",
+            f"{call_value:.4f}"
+        )
+
+        st.caption(
+            contract_caption(
+                greek,
+                call_value,
+                contract_multiplier
+            )
+        )
+
+    with c3:
+        st.metric(
+            "Put",
+            f"{put_value:.4f}"
+        )
+
+        st.caption(
+            contract_caption(
+                greek,
+                put_value,
+                contract_multiplier
+            )
+        )
 st.write("---")
 # Visualization of Inputs for Implied Volatility Calculation
 st.header("Implied Volatility (Newton Raphson Method)")

@@ -107,6 +107,43 @@ class BlackScholes:
 
         return {"call": {"Delta": delta_call, "Gamma": gamma, "Vega": vega, "Theta": theta_call, "Rho": rho_call}, "put": {"Delta": delta_put, "Gamma": gamma, "Vega": vega, "Theta": theta_put, "Rho": rho_put}}
 
+    def reporting_greeks(self, S: float, K: float, T: float, r:float, vol:float) -> dict:
+        """
+            Convert raw Black Scholes Greeks into practical reporting units.
+            Args:
+            S (float): underlying price
+            K (float): strike price
+            T (float): time to expiration in years
+            r (float): risk-free rate
+            vol (float): volatility
+            Return:
+                dict:
+                    call (dict): Greeks for the call option
+                        Delta (float): Rate of change of option value to underlying price
+                        Gamma (float): Rate of change in delta to changes in underlying price
+                        Vega (float): Change in option value for 1 percentage-point change in volatility
+                        Theta (float): Change in option value per day due to passage of time
+                        Rho (float): Change in option value for 1 percentage-point change in the risk-free rate
+                    put (dict): Greeks for the put option
+                        Delta (float): Rate of change of option value to underlying price
+                        Gamma (float): Rate of change in delta to changes in underlying price
+                        Vega (float): Change in option value for 1 percentage-point change in volatility
+                        Theta (float): Change in option value per day due to passage of time
+                        Rho (float): Change in option value for 1 percentage-point change in the risk-free rate
+
+        """
+        raw = self.greeks(S,K,T,r,vol)
+        result = {}
+        for otype in ("call", "put"):
+            result[otype] = {
+                "Delta": raw[otype]["Delta"],
+                "Gamma": raw[otype]["Gamma"],
+                "Vega": raw[otype]["Vega"] / 100,
+                "Theta": raw[otype]["Theta"] / 365,
+                "Rho": raw[otype]["Rho"] / 100
+            }
+        return result
+
     def quote(self, S: float, T: float, r: float, K: float, vol: float) -> dict:
         """
         Call functions to calculate option prices and Greeks using Black Scholes and bundle
@@ -129,11 +166,15 @@ class BlackScholes:
             prices (dict): theoretical option prices
                 call (float): Black Scholes price of the European call
                 put (float): Black Scholes price of the European put
-            greeks (dict): option Greeks
+            greeks (dict): mathematically calculated option Greeks
                 call (dict): Greeks for the call option
                 put (dict): Greeks for the put option
+            reporting_greeks (dict): greeks + reformatted vega, theta and rho for reporting
+                call (dict): Reporting Greeks for the call option
+                put (dict): Reporting Greeks for the put option
         """
         prices = self.call_and_put_price(S, K, T, r, vol)
-        greeks = self.greeks(S, K, T, r, vol)
+        raw_greeks = self.greeks(S, K, T, r, vol)
+        reporting_greeks = self.reporting_greeks(S, K, T, r, vol)
         return {"ticker": self.ticker, "expiry": self.expiry, "S": S, "T": T, "r": r, "K": K, "vol": vol,
-            "prices": prices, "greeks": greeks}
+            "prices": prices, "greeks": raw_greeks, "reporting_greeks": reporting_greeks}
