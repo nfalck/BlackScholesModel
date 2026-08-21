@@ -65,13 +65,12 @@ try:
         else:
             r = get_risk_free_rate(T)
     else:
+        T = bs.time_to_expiration()
+        S = get_underlying_price(ticker=ticker)
         if manual_r:
             r = float(r_override)
         else:
-            T = bs.time_to_expiration()
             r = get_risk_free_rate(T)
-        S = get_underlying_price(ticker=ticker)
-        T = bs.time_to_expiration()
 except Exception as e:
     st.error(f"Setup error: {e}")
     st.stop()
