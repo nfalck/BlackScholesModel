@@ -1,5 +1,6 @@
 import streamlit as st
 from blackscholes import BlackScholes
+from market_data import get_underlying_price, get_risk_free_rate
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -62,14 +63,14 @@ try:
         if manual_r:
             r = float(r_override)
         else:
-            r = bs.get_risk_free_rate(T)
+            r = get_risk_free_rate(T)
     else:
         if manual_r:
             r = float(r_override)
         else:
             T = bs.time_to_expiration()
-            r = bs.get_risk_free_rate(T)
-        S = bs.get_underlying_price(ticker=ticker)
+            r = get_risk_free_rate(T)
+        S = get_underlying_price(ticker=ticker)
         T = bs.time_to_expiration()
 except Exception as e:
     st.error(f"Setup error: {e}")

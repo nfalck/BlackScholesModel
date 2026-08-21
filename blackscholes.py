@@ -1,4 +1,3 @@
-import yfinance as yf
 from scipy.stats import norm
 import datetime as dt
 import math
@@ -22,40 +21,6 @@ class BlackScholes:
         today = dt.date.today()
         T = ((expiry_date - today).days) / 365.0
         return T
-
-    def get_risk_free_rate(self, T: float) -> float:
-        """
-        Retrieve live risk-free rate from Yahoo Finance depending on time to expiration
-        Args:
-        T (float): time to expiry in years
-        Return:
-        r (float): risk-free rate
-        """
-        if T <= 0.25:
-            rf_ticker = "^IRX"  # 13W (~3M)
-        elif T <= 2:
-            rf_ticker = "^FVX"  # 5Y
-        elif T <= 10:
-            rf_ticker = "^TNX"  # 10Y
-        else:
-            rf_ticker = "^TYX"  # 30Y
-        data = yf.Ticker(rf_ticker).history(period="1d")
-        if data.empty:
-            r = 0.02  # default value if live data not found
-        else:
-            r = float(data["Close"].iloc[-1]) / 100.0
-        return r
-
-    def get_underlying_price(self, ticker: str) -> float:
-        """
-        Retrieve the live underlying price from Yahoo Finance
-        Args:
-        ticker (str): ticker
-        Return:
-        underlying_price (float): latest closing price
-        """
-        underlying_price = float(yf.Ticker(ticker).history(period="1d")["Close"].iloc[-1])
-        return underlying_price
 
     def d1_and_d2(self, S: float, K: float, T: float, r: float, vol: float) -> tuple[float, float]:
         """
