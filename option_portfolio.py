@@ -1,5 +1,6 @@
 from option_position import OptionPosition
 from blackscholes import BlackScholes
+import pandas as pd
 
 class OptionPortfolio:
     """
@@ -112,3 +113,59 @@ class OptionPortfolio:
 
         return totals
 
+    @classmethod
+    def from_csv(cls, filepath: str):
+        """
+        Create an OptionPortfolio from a CSV file.
+
+        Expected Columns:
+            ticker
+            otype
+            strike
+            expiry
+            quantity
+            multiplier (optional)
+
+        Args:
+            filepath (str): Path to the portfolio CSV.
+
+        Returns:
+            OptionPortfolio: Portfolio created from CSV positions.
+
+        """
+        df = pd.read_csv(filepath)
+
+        required_columns = {
+            "ticker",
+            "otype",
+            "strike",
+            "expiry",
+            "quantity"
+        }
+
+        missing = required_columns - set(df.columns)
+
+        if missing:
+            raise ValueError(f"Missing required columns: {sorted(missing)}")
+
+        positions = []
+
+        for i, row in df.iterrows():
+            multiplier = (
+                int(row["multiplier"])
+                if "multiplier" in df.columns
+                else 100
+            )
+
+            position = OptionPosition(
+                ticker=str(row["ticker"]),
+                otype=str(row["otype"]),
+                strike=float(row["strike"]),
+                expiry=str(row["expiry"]),
+                quantity=int(row["quantity"]),
+                multiplier=multiplier
+            )
+
+            positions.append(position)
+
+        return cls(positions)
