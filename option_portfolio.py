@@ -20,17 +20,21 @@ class OptionPortfolio:
         """
         self.positions.append(position)
 
-    def evaluate(self, S: float, r: float, vol: float) -> list[dict]:
+    def evaluate(self, S: float, r: float, vol: float, days_forward: int = 0) -> list[dict]:
         """
         Price every option position and calculate position-level risk.
         Args:
             S (float): Current underlying price.
             r (float): Risk-free rate as a decimal.
             vol (float): Volatility as a decimal.
+            days_forward (int): # of calendar days to move forward for scenario analysis.
 
         Returns:
             list[dict]: Pricing and Greeks results for each position.
         """
+        if days_forward < 0:
+            raise ValueError("days_forward cannot be negative.")
+
         results = []
 
         # Evaluate each option position individually
@@ -40,11 +44,17 @@ class OptionPortfolio:
                 expiry=position.expiry
             )
 
-            # Calculate time to expiry
+            # Calculate current time to expiry
             T = bs.time_to_expiration()
 
+            # Reduce time to expiry to simulate the passage of time
+            stressed_T = T - (days_forward / 365.0)
+
+            if stressed_T <= 0:
+                raise ValueError(f"Scenario moves beyond expiry for {position.ticker} {position.strike} {position.otype}")
+
             # Price the option and calculate its Greeks
-            out = bs.quote(S=S, K=position.strike, T=T, r=r, vol=vol)
+            out = bs.quote(S=S, K=position.strike, T=stressed_T, r=r, vol=vol)
 
             # Select call or put results depending on the position
             option_price = out["prices"][position.otype]
@@ -62,6 +72,7 @@ class OptionPortfolio:
                     "Expiry": position.expiry,
                     "Quantity": position.quantity,
                     "Multiplier": position.multiplier,
+                    "T": stressed_T,
                     "Price": option_price,
                     "Position Value": position_value,
                     "Delta": position_risk["Delta"],
