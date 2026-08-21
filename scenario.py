@@ -1,5 +1,3 @@
-from blackscholes import BlackScholes
-
 def run_scenario(
         portfolio,
         S: float,
@@ -9,6 +7,26 @@ def run_scenario(
         vol_change: float = 0.0,
         rate_change: float = 0.0
 ) -> dict:
+    """
+    Run a market-risk scenario using full portfolio repricing.
+
+    The portfolio is first valued under current market conditions.
+    Market shocks are then applied to spot, volatility and interest rates,
+    and the entire portfolio is repriced.
+
+    Scenario P&L = stressed portfolio value - base portfolio value
+    Args:
+        portfolio (OptionPortfolio): OptionPortfolio to stress.
+        S (float): Current underlying price.
+        r (float): Current risk-free rate as a decimal.
+        vol (float): Current volatility as a decimal.
+        spot_change (float): Relative percentage change to spot.
+        vol_change (float): Absolute change in volatility.
+        rate_change (float): Absolute change in interest rates.
+
+    Returns:
+        dict: Base and stressed market conditions, portfolio values, and resulting scenario P&L.
+    """
     base_results = portfolio.evaluate(S=S, r=r, vol=vol)
 
     base_summary = portfolio.risk_summary(base_results)
