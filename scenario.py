@@ -5,7 +5,8 @@ def run_scenario(
         vol: float,
         spot_change: float = 0.0,
         vol_change: float = 0.0,
-        rate_change: float = 0.0
+        rate_change: float = 0.0,
+        days_forward: int = 0
 ) -> dict:
     """
     Run a market-risk scenario using full portfolio repricing.
@@ -28,8 +29,11 @@ def run_scenario(
         dict: Base and stressed market conditions, portfolio values, and resulting scenario P&L.
     """
 
-    # Value the portfolio under current market conditions
-    base_results = portfolio.evaluate(S=S, r=r, vol=vol)
+    if days_forward < 0:
+        raise ValueError("days_forward cannot be negative.")
+
+    # Value the portfolio under current market conditions (today)
+    base_results = portfolio.evaluate(S=S, r=r, vol=vol, days_forward=0)
 
     base_summary = portfolio.risk_summary(base_results)
 
@@ -39,11 +43,12 @@ def run_scenario(
     stressed_vol = vol + vol_change
     stressed_r = r + rate_change
 
-    # Fully reprice every position using stressed market conditions
+    # Fully reprice every position using stressed market conditions and passage of time
     stressed_results = portfolio.evaluate(
         S=stressed_S,
         r=stressed_r,
-        vol=stressed_vol
+        vol=stressed_vol,
+        days_forward=days_forward
     )
 
     stressed_summary = portfolio.risk_summary(stressed_results)
@@ -60,4 +65,5 @@ def run_scenario(
         "Stressed Vol": stressed_vol,
         "Base Rate": r,
         "Stressed Rate": stressed_r,
+        "Days Forward": days_forward
     }
