@@ -27,14 +27,19 @@ def run_scenario(
     Returns:
         dict: Base and stressed market conditions, portfolio values, and resulting scenario P&L.
     """
+
+    # Value the portfolio under current market conditions
     base_results = portfolio.evaluate(S=S, r=r, vol=vol)
 
     base_summary = portfolio.risk_summary(base_results)
 
+    # Apply the specified market shocks
+    # Spot shock is relative, the latter shocks are absolute
     stressed_S = S * (1+spot_change)
     stressed_vol = vol + vol_change
     stressed_r = r + rate_change
 
+    # Fully reprice every position using stressed market conditions
     stressed_results = portfolio.evaluate(
         S=stressed_S,
         r=stressed_r,
