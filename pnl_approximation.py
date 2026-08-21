@@ -6,6 +6,9 @@ def greek_pnl_approximation(
         rate_change: float = 0.0,
         days_forward: int = 0
 ):
+    """
+    Approximate portfolio P&L using reporting Greeks.
+    """
     delta = portfolio_greeks["Delta"]
     gamma = portfolio_greeks["Gamma"]
     vega = portfolio_greeks["Vega"]
