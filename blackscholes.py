@@ -5,11 +5,10 @@ from typing import Optional
 
 
 class BlackScholes:
-    def __init__(self, ticker: str, expiry: str, r_override: Optional[float] = None):
+    def __init__(self, ticker: str, expiry: str):
         # Initialized Variables
         self.ticker = ticker.strip().upper()
         self.expiry = expiry
-        self.r_override = r_override
 
     def time_to_expiration(self) -> float:
         """
