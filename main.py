@@ -3,6 +3,7 @@ from blackscholes import BlackScholes
 from market_data import get_underlying_price, get_risk_free_rate
 import numpy as np
 import matplotlib.pyplot as plt
+from implied_vol import implied_vol_newton
 
 st.set_page_config(page_title="Black Scholes Model", layout="wide")
 st.title("Black Scholes Model")
@@ -150,61 +151,29 @@ market_call_price = float(c1_iv.number_input("Market Call price", value=0.0, min
 market_put_price = float(c2_iv.number_input("Market Put price",  value=0.0, min_value=0.0, step=0.05, format="%.4f"))
 iv_tol = float(c3_iv.number_input("Tolerance", value=1e-8, min_value=1e-10, format="%.1e"))
 
-
-# Implied Volatility Calculation
-def implied_vol_newton(otype: str) -> float:
-    """
-    Calculates the implied volatility using the Newton Raphson Method
-    Args:
-    otype (str): Option type, if it is call or put
-
-    Returns:
-    implied_vol (float): The calculated implied volatility
-    """
-    max_iter = 100 # max iterations to find IV, in case we do not find a convergence
-    old_vol = vol_guess # initial guess
-
-    for i in range(max_iter):
-        bs_results = bs.quote(S=S, T=T, r=r, K=K, vol=old_vol)
-        if otype == "call":
-            theoretical_price = bs_results["prices"]["call"]
-            Cprime = bs_results["greeks"]["call"]["Vega"]
-        else:
-            theoretical_price = bs_results["prices"]["put"]
-            Cprime = bs_results["greeks"]["put"]["Vega"]
-
-        C = theoretical_price - (market_call_price if otype == "call" else market_put_price)
-
-        new_vol = old_vol - (C/Cprime)
-        new_bs_results = bs.quote(S=S, T=T, r=r, K=K, vol=new_vol)
-
-        # continue iterating until difference between the volatilities or prices are less than tolerance
-        if otype == "call":
-            if abs(old_vol - new_vol) < iv_tol or abs(new_bs_results["prices"]["call"] - market_call_price) < iv_tol:
-                break
-        else:
-            if abs(old_vol - new_vol) < iv_tol or abs(new_bs_results["prices"]["put"] - market_put_price) < iv_tol:
-                break
-
-        old_vol = new_vol
-    implied_vol = old_vol
-    return implied_vol
-
 # Initialize
 iv_call = None
 iv_put = None
 
 # Calculate IV when market price is put in by the user
 if market_call_price > 0:
-    iv_call = implied_vol_newton("call")
+    try:
+        iv_call = implied_vol_newton(bs=bs, otype="call", market_price=market_call_price, S=S, K=K, T=T, r=r,
+                                     initial_vol=float(vol_guess), tol=iv_tol)
+    except Exception as e:
+        st.error(f"Call IV calculation failed: {e}")
 if market_put_price > 0:
-    iv_put = implied_vol_newton("put")
+    try:
+        iv_put = implied_vol_newton(bs=bs, otype="put", market_price=market_put_price, S=S, K=K, T=T, r=r,
+                                     initial_vol=float(vol_guess), tol=iv_tol)
+    except Exception as e:
+        st.error(f"Put IV calculation failed: {e}")
 
 # Visualization of the Results
 c1_iv_res, c2_iv_res, c3_iv_res = st.columns(3)
 c1_iv_res.metric("Your σ (input)", f"{float(vol_guess):.4f}")
 c2_iv_res.metric("Implied σ (Call)", f"{iv_call:.4f}" if iv_call is not None else "—")
-c3_iv_res.metric("Implied σ (Put)",  f"{iv_put:.4f}"  if iv_put  is not None else "—")
+c3_iv_res.metric("Implied σ (Put)",  f"{iv_put:.4f}" if iv_put is not None else "—")
 
 # Plotting the Results for Further Visualization
 def plot_newton(if_call: bool, market_price: float, iv_solved: float, title_suffix: str):
