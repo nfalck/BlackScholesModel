@@ -21,12 +21,12 @@ class OptionPortfolio:
         """
         self.positions.append(position)
 
-    def evaluate(self, spot_prices: dict, r: float, vol: float, days_forward: int = 0) -> list[dict]:
+    def evaluate(self, spot_prices: dict, rates_by_expiry: dict, vol: float, days_forward: int = 0) -> list[dict]:
         """
         Price every option position and calculate position-level risk.
         Args:
             spot_prices (dict): Current underlying prices of each ticker.
-            r (float): Risk-free rate as a decimal.
+            rates_by_expiry (dict): Risk-free rates of each expiry.
             vol (float): Volatility as a decimal.
             days_forward (int): # of calendar days to move forward for scenario analysis.
 
@@ -45,11 +45,21 @@ class OptionPortfolio:
         if missing_tickers:
             raise ValueError(f"Missing spot prices for: {sorted(missing_tickers)}")
 
+        missing_rates = {
+            position.expiry
+            for position in self.positions
+            if position.expiry not in rates_by_expiry
+        }
+
+        if missing_rates:
+            raise ValueError(f"Missing risk-free rates for expiries: {sorted(missing_rates)}")
+
         results = []
 
         # Evaluate each option position individually
         for position in self.positions:
             S = spot_prices[position.ticker]
+            r = rates_by_expiry[position.expiry]
 
             bs = BlackScholes(
                 ticker=position.ticker,
