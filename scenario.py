@@ -1,7 +1,7 @@
 def run_scenario(
         portfolio,
         spot_prices: dict,
-        r: float,
+        rates_by_expiry: dict,
         vol: float,
         spot_change: float = 0.0,
         vol_change: float = 0.0,
@@ -19,7 +19,7 @@ def run_scenario(
     Args:
         portfolio (OptionPortfolio): OptionPortfolio to stress.
         spot_prices (dict): Current underlying prices of each ticker.
-        r (float): Current risk-free rate as a decimal.
+        rates_by_expiry (dict): Risk-free rates for each expiration.
         vol (float): Current volatility as a decimal.
         spot_change (float): Relative percentage change to spot.
         vol_change (float): Absolute change in volatility.
@@ -34,7 +34,7 @@ def run_scenario(
         raise ValueError("days_forward cannot be negative.")
 
     # Value the portfolio under current market conditions (today)
-    base_results = portfolio.evaluate(spot_prices=spot_prices, r=r, vol=vol, days_forward=0)
+    base_results = portfolio.evaluate(spot_prices=spot_prices, rates_by_expiry=rates_by_expiry, vol=vol, days_forward=0)
 
     base_summary = portfolio.risk_summary(base_results)
 
@@ -45,12 +45,16 @@ def run_scenario(
         for ticker, price in spot_prices.items()
     }
     stressed_vol = vol + vol_change
-    stressed_r = r + rate_change
+
+    stressed_rates = {
+        expiry: rate + rate_change
+        for expiry, rate in rates_by_expiry.items()
+    }
 
     # Fully reprice every position using stressed market conditions and passage of time
     stressed_results = portfolio.evaluate(
         spot_prices=stressed_spot_prices,
-        r=stressed_r,
+        rates_by_expiry=stressed_rates,
         vol=stressed_vol,
         days_forward=days_forward
     )
@@ -67,7 +71,7 @@ def run_scenario(
         "Stressed Spots": stressed_spot_prices,
         "Base Vol": vol,
         "Stressed Vol": stressed_vol,
-        "Base Rate": r,
-        "Stressed Rate": stressed_r,
+        "Base Rates": rates_by_expiry,
+        "Stressed Rates": stressed_rates,
         "Days Forward": days_forward
     }
