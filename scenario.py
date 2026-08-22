@@ -1,6 +1,6 @@
 def run_scenario(
         portfolio,
-        S: float,
+        spot_prices: dict,
         r: float,
         vol: float,
         spot_change: float = 0.0,
@@ -18,12 +18,13 @@ def run_scenario(
     Scenario P&L = stressed portfolio value - base portfolio value
     Args:
         portfolio (OptionPortfolio): OptionPortfolio to stress.
-        S (float): Current underlying price.
+        spot_prices (dict): Current underlying prices of each ticker.
         r (float): Current risk-free rate as a decimal.
         vol (float): Current volatility as a decimal.
         spot_change (float): Relative percentage change to spot.
         vol_change (float): Absolute change in volatility.
         rate_change (float): Absolute change in interest rates.
+        days_forward (int): Number of calendar days to roll the portfolio forward.
 
     Returns:
         dict: Base and stressed market conditions, portfolio values, and resulting scenario P&L.
@@ -33,19 +34,22 @@ def run_scenario(
         raise ValueError("days_forward cannot be negative.")
 
     # Value the portfolio under current market conditions (today)
-    base_results = portfolio.evaluate(S=S, r=r, vol=vol, days_forward=0)
+    base_results = portfolio.evaluate(spot_prices=spot_prices, r=r, vol=vol, days_forward=0)
 
     base_summary = portfolio.risk_summary(base_results)
 
     # Apply the specified market shocks
     # Spot shock is relative, the latter shocks are absolute
-    stressed_S = S * (1+spot_change)
+    stressed_spot_prices = {
+        ticker: price * (1 + spot_change)
+        for ticker, price in spot_prices.items()
+    }
     stressed_vol = vol + vol_change
     stressed_r = r + rate_change
 
     # Fully reprice every position using stressed market conditions and passage of time
     stressed_results = portfolio.evaluate(
-        S=stressed_S,
+        spot_prices=stressed_spot_prices,
         r=stressed_r,
         vol=stressed_vol,
         days_forward=days_forward
@@ -59,8 +63,8 @@ def run_scenario(
         "Base Value": base_summary["Position Value"],
         "Stressed Value": stressed_summary["Position Value"],
         "PnL": pnl,
-        "Base Spot": S,
-        "Stressed Spot": stressed_S,
+        "Base Spots": spot_prices,
+        "Stressed Spots": stressed_spot_prices,
         "Base Vol": vol,
         "Stressed Vol": stressed_vol,
         "Base Rate": r,
