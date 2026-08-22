@@ -21,11 +21,11 @@ class OptionPortfolio:
         """
         self.positions.append(position)
 
-    def evaluate(self, S: float, r: float, vol: float, days_forward: int = 0) -> list[dict]:
+    def evaluate(self, spot_prices: dict, r: float, vol: float, days_forward: int = 0) -> list[dict]:
         """
         Price every option position and calculate position-level risk.
         Args:
-            S (float): Current underlying price.
+            spot_prices (dict): Current underlying prices of each ticker.
             r (float): Risk-free rate as a decimal.
             vol (float): Volatility as a decimal.
             days_forward (int): # of calendar days to move forward for scenario analysis.
@@ -36,10 +36,21 @@ class OptionPortfolio:
         if days_forward < 0:
             raise ValueError("days_forward cannot be negative.")
 
+        missing_tickers = {
+            position.ticker
+            for position in self.positions
+            if position.ticker not in spot_prices
+        }
+
+        if missing_tickers:
+            raise ValueError(f"Missing spot prices for: {sorted(missing_tickers)}")
+
         results = []
 
         # Evaluate each option position individually
         for position in self.positions:
+            S = spot_prices[position.ticker]
+
             bs = BlackScholes(
                 ticker=position.ticker,
                 expiry=position.expiry
@@ -114,7 +125,7 @@ class OptionPortfolio:
         return totals
 
     @classmethod
-    def from_csv(cls, filepath: str):
+    def from_csv(cls, file):
         """
         Create an OptionPortfolio from a CSV file.
 
@@ -127,13 +138,13 @@ class OptionPortfolio:
             multiplier (optional)
 
         Args:
-            filepath (str): Path to the portfolio CSV.
+            file: Uploaded CSV file from Streamlit Dashboard.
 
         Returns:
             OptionPortfolio: Portfolio created from CSV positions.
 
         """
-        df = pd.read_csv(filepath)
+        df = pd.read_csv(file)
 
         required_columns = {
             "ticker",
