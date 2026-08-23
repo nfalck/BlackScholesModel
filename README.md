@@ -1,8 +1,7 @@
-# Black Scholes Model
+# Black Scholes Options Risk Dashboard
 
 
-Streamlit dashboard of call and option prices, greeks and implied volatility using Black Scholes Model and Newton Raphson Method with live inputs from Yahoo Finance
-
+A Streamlit application for option pricing, Greeks, implied volatility, and portfolio-level risk analysis using the Black Scholes model. The project combines live market data with scenario analysis and full portfolio repricing.
 ## Features
 
 ![image](demoimage.png)
@@ -13,6 +12,26 @@ Streamlit dashboard of call and option prices, greeks and implied volatility usi
 ![image](demoimage2.png)
 - Choose market price and tolerance
 - Calculate implied volatility and compare with your volatility
+
+![image](portfoliodemo1.png)
+- Upload an options portfolio from CSV or create the portfolio directly with the builder
+- Retrieve live spot prices for the underlying assets
+- Use maturity specific risk-free rates
+- Derive contract specific implied volatility from live option chain prices
+
+![image](portfoliodemo2.png)
+- Calculate portfolio market value and aggregate Delta, Gamma, Vega, Theta and Rho
+- Display a position-level breakdown of prices, market inputs, values and Greeks
+
+![image](portfoliodemo3.png)
+- Apply spot, volatility, interest rate and time-forward stress scenarios
+- Compare Greek P&L approximation with full Black Scholes repricing
+
+![image](portfoliodemo4.png)
+- Break approximate scenario P&L into Delta, Gamma, Vega, Theta and Rho contributions
+
+![image](portfoliodemo5.png)
+- Visualize scenario exposure with an interactive Spot x Volatility P&L heatmap
 
 ## Demo
 
