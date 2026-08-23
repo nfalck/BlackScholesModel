@@ -21,13 +21,13 @@ class OptionPortfolio:
         """
         self.positions.append(position)
 
-    def evaluate(self, spot_prices: dict, rates_by_expiry: dict, vol: float, days_forward: int = 0) -> list[dict]:
+    def evaluate(self, spot_prices: dict, rates_by_expiry: dict, vols_by_contract: dict, days_forward: int = 0) -> list[dict]:
         """
         Price every option position and calculate position-level risk.
         Args:
             spot_prices (dict): Current underlying prices of each ticker.
             rates_by_expiry (dict): Risk-free rates of each expiry.
-            vol (float): Volatility as a decimal.
+            vols_by_contract (dict): Market implied volatilities of each contract.
             days_forward (int): # of calendar days to move forward for scenario analysis.
 
         Returns:
@@ -35,6 +35,15 @@ class OptionPortfolio:
         """
         if days_forward < 0:
             raise ValueError("days_forward cannot be negative.")
+
+        missing_spots = {
+            position.ticker
+            for position in self.positions
+            if position.ticker not in spot_prices
+        }
+
+        if missing_spots:
+            raise ValueError(f"Missing spot prices for: {sorted(missing_spots)}")
 
         missing_tickers = {
             position.ticker
@@ -54,12 +63,37 @@ class OptionPortfolio:
         if missing_rates:
             raise ValueError(f"Missing risk-free rates for expiries: {sorted(missing_rates)}")
 
+        missing_vols = []
+
+        for position in self.positions:
+            key = (
+                position.ticker,
+                position.otype,
+                float(position.strike),
+                position.expiry
+            )
+
+            if key not in vols_by_contract:
+                missing_vols.append(key)
+
+        if missing_vols:
+            raise ValueError(f"Missing market IV for contracts: {missing_vols}")
+
         results = []
 
         # Evaluate each option position individually
         for position in self.positions:
             S = spot_prices[position.ticker]
             r = rates_by_expiry[position.expiry]
+
+            contract_key = (
+                position.ticker,
+                position.otype,
+                float(position.strike),
+                position.expiry
+            )
+
+            vol = vols_by_contract[contract_key]
 
             bs = BlackScholes(
                 ticker=position.ticker,
@@ -94,7 +128,10 @@ class OptionPortfolio:
                     "Expiry": position.expiry,
                     "Quantity": position.quantity,
                     "Multiplier": position.multiplier,
+                    "Spot": S,
                     "T": stressed_T,
+                    "Rate": r,
+                    "IV": vol,
                     "Price": option_price,
                     "Position Value": position_value,
                     "Delta": position_risk["Delta"],
