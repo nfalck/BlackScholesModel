@@ -4,13 +4,24 @@ from option_portfolio import OptionPortfolio
 from option_position import OptionPosition
 from scenario import run_scenario
 from pnl_approximation import greek_pnl_approximation
-from market_data import get_underlying_price
-from market_data import get_risk_free_rate
-from option_chain import time_to_expiry
+from market_data import get_underlying_price, get_risk_free_rate
+from option_chain import time_to_expiry, get_option_chain
 from market_iv import create_market_vols
 import plotly.graph_objects as go
 import numpy as np
 import plotly.express as px
+
+@st.cache_data(ttl=900)
+def cached_spot_price(ticker: str):
+    return get_underlying_price(ticker)
+
+@st.cache_data(ttl=3600)
+def cached_risk_free_rate(T: float):
+    return get_risk_free_rate(T)
+
+@st.cache_data(ttl=900)
+def cached_option_chain(ticker: str, expiry: str):
+    return get_option_chain(ticker=ticker, expiry=expiry)
 
 def format_dollar(value: float) -> str:
     if value < 0:
@@ -132,7 +143,7 @@ if portfolio is not None:
 
     for ticker in tickers:
         try:
-            spot_prices[ticker] = get_underlying_price(ticker)
+            spot_prices[ticker] = cached_spot_price(ticker)
         except Exception as e:
             st.error(f"Could not fetch market price for {ticker}: {e}")
             st.stop()
@@ -148,10 +159,10 @@ if portfolio is not None:
 
         T = time_to_expiry(expiry)
 
-        rates_by_expiry[expiry] = get_risk_free_rate(T)
+        rates_by_expiry[expiry] = cached_risk_free_rate(T)
 
     try:
-        vols_by_contract = create_market_vols(portfolio=portfolio, rates_by_expiry=rates_by_expiry)
+        vols_by_contract = create_market_vols(portfolio=portfolio, rates_by_expiry=rates_by_expiry, chain_fetcher=cached_option_chain)
     except Exception as e:
         st.error(f"Could not retrieve market implied volatility: {e}")
         st.stop()
