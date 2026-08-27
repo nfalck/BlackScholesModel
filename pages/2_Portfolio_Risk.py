@@ -5,29 +5,42 @@ from option_position import OptionPosition
 from scenario import run_scenario
 from pnl_approximation import greek_pnl_approximation
 from market_data import get_underlying_price, get_risk_free_rate
-from option_chain import time_to_expiry, get_option_chain
+from option_chain import time_to_expiry, get_option_chain, get_expiries
 from market_iv import create_market_vols
 import plotly.graph_objects as go
 import numpy as np
 import plotly.express as px
 
+
+# Cache data to help with Yahoo Finance's rate limits
 @st.cache_data(ttl=900)
 def cached_spot_price(ticker: str):
     return get_underlying_price(ticker)
+
 
 @st.cache_data(ttl=3600)
 def cached_risk_free_rate(T: float):
     return get_risk_free_rate(T)
 
+
+@st.cache_data(ttl=3600)
+def cached_expiries(ticker: str):
+    return get_expiries(ticker)
+
+
 @st.cache_data(ttl=900)
 def cached_option_chain(ticker: str, expiry: str):
     return get_option_chain(ticker=ticker, expiry=expiry)
 
+
+# Formatting
 def format_dollar(value: float) -> str:
     if value < 0:
         return f"-${abs(value):,.2f}"
     return f"${value:,.2f}"
 
+
+# Creation of portfolio
 def portfolio_from_dataframe(df: pd.DataFrame) -> OptionPortfolio:
     positions = []
     for i, row in df.iterrows():
@@ -43,6 +56,8 @@ def portfolio_from_dataframe(df: pd.DataFrame) -> OptionPortfolio:
         positions.append(position)
     return OptionPortfolio(positions)
 
+
+# Default portfolio in the builder
 default_portfolio = pd.DataFrame(
     [
         {
@@ -68,6 +83,10 @@ st.set_page_config(page_title="Options Portfolio Risk", layout="wide")
 st.title("Options Portfolio Risk")
 st.caption("Portfolio-level valuation, Greeks and scenario analysis.")
 
+# Create a session state to help with functionality for the portfolio builder
+if "portfolio_df" not in st.session_state:
+    st.session_state.portfolio_df = default_portfolio.copy()
+
 st.subheader("Portfolio Input")
 
 input_method = st.radio(
@@ -79,8 +98,119 @@ input_method = st.radio(
 portfolio = None
 
 if input_method == "Build Portfolio":
+
+    # Functionality for the user to pick live contracts from Yahoo Finance
+    st.markdown("### Add Market Contract")
+    c1, c2 = st.columns(2)
+
+    with c1:
+        contract_ticker = st.text_input(
+            "Ticker",
+            value="AAPL",
+            key="contract_ticker",
+            help="Underlying ticker symbol."
+        ).strip().upper()
+
+    available_expiries = []
+
+    if contract_ticker:
+        try:
+            available_expiries = cached_expiries(contract_ticker)
+        except Exception as e:
+            st.error(f"Could not retrieve expirations for {contract_ticker}: {e}")
+
+    with c2:
+        contract_expiry = st.selectbox(
+            "Expiration",
+            options=available_expiries,
+            key="contract_expiry",
+            help="Available option expiration dates returned by Yahoo Finance."
+        )
+
+    selection_chain = pd.DataFrame()
+
+    if contract_ticker and contract_expiry:
+        try:
+            selection_chain = cached_option_chain(contract_ticker, contract_expiry)
+        except Exception as e:
+            st.error(f"Could not retrieve option chain: {e}")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        contract_otype = st.selectbox(
+            "Option Type",
+            options=["call", "put"],
+            key="contract_otype"
+        )
+
+    available_strikes = []
+
+    if not selection_chain.empty:
+        available_contracts = selection_chain[selection_chain["otype"] == contract_otype].copy()
+
+        available_strikes = sorted(available_contracts["strike"].dropna().unique().tolist())
+
+    with c2:
+        contract_strike = st.selectbox(
+            "Strike",
+            options=available_strikes,
+            key="contract_strike"
+        )
+
+    with c3:
+        contract_quantity = st.number_input(
+            "Quantity",
+            value=1,
+            step=1,
+            key="contract_quantity",
+            help="Positive = long, Negative = short"
+        )
+
+    contract_multiplier = st.number_input(
+        "Contract Multiplier",
+        min_value=1,
+        value=100,
+        step=1,
+        key="contract_multiplier",
+        help="Typically 100 for US equity options."
+    )
+
+    add_disabled = (not contract_ticker or not contract_expiry or not available_strikes)
+
+    # If user adds a new position, it gets added to the portfolio builder
+    if st.button(
+        "Add Position",
+        type="primary",
+        disabled=add_disabled
+    ):
+        new_position = pd.DataFrame(
+            [
+                {
+                    "ticker": contract_ticker,
+                    "otype": contract_otype,
+                    "strike": float(contract_strike),
+                    "expiry": contract_expiry,
+                    "quantity": int(contract_quantity),
+                    "multiplier": int(contract_multiplier)
+                }
+            ]
+        )
+
+        st.session_state.portfolio_df = pd.concat(
+            [
+                st.session_state.portfolio_df,
+                new_position
+            ],
+            ignore_index=True
+        )
+
+    st.markdown("### Current Portfolio")
+
+    if st.button("Reset to Default Portfolio"):
+        st.session_state.portfolio_df = default_portfolio.copy()
+
     edited_df = st.data_editor(
-        default_portfolio,
+        st.session_state.portfolio_df,
         num_rows="dynamic",
         hide_index=True,
         width="stretch",
@@ -121,11 +251,15 @@ if input_method == "Build Portfolio":
         }
     )
 
-    try:
-        portfolio = portfolio_from_dataframe(edited_df)
-    except Exception as e:
-        st.error(f"Invalid portfolio: {e}")
-        st.stop()
+    st.session_state.portfolio_df = edited_df.copy()
+    if not edited_df.empty:
+        try:
+            portfolio = portfolio_from_dataframe(edited_df)
+        except Exception as e:
+            st.error(f"Invalid portfolio: {e}")
+            st.stop()
+    else:
+        st.info("Add at least one option position for portfolio analysis.")
 else:
     uploaded_file = st.file_uploader("Upload Portfolio CSV", type=["csv"])
     if uploaded_file is not None:
@@ -162,7 +296,8 @@ if portfolio is not None:
         rates_by_expiry[expiry] = cached_risk_free_rate(T)
 
     try:
-        vols_by_contract = create_market_vols(portfolio=portfolio, rates_by_expiry=rates_by_expiry, chain_fetcher=cached_option_chain)
+        vols_by_contract = create_market_vols(portfolio=portfolio, rates_by_expiry=rates_by_expiry,
+                                              chain_fetcher=cached_option_chain)
     except Exception as e:
         st.error(f"Could not retrieve market implied volatility: {e}")
         st.stop()
@@ -179,7 +314,8 @@ if portfolio is not None:
 
     if portfolio is not None:
         try:
-            evaluated = portfolio.evaluate(spot_prices=spot_prices, rates_by_expiry=rates_by_expiry, vols_by_contract=vols_by_contract)
+            evaluated = portfolio.evaluate(spot_prices=spot_prices, rates_by_expiry=rates_by_expiry,
+                                           vols_by_contract=vols_by_contract)
 
             summary = portfolio.risk_summary(evaluated)
 
@@ -188,7 +324,7 @@ if portfolio is not None:
             st.stop()
 
     st.subheader("Portfolio Risk")
-    c1,c2,c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
     with c1:
         st.metric(
@@ -200,7 +336,7 @@ if portfolio is not None:
         st.metric(
             "Delta",
             f"{summary['Delta']:,.2f}",
-            help=("Approximate portfolio P&L for a $1 increase.")
+            help="Approximate portfolio P&L for a $1 increase."
         )
 
     with c3:
@@ -209,27 +345,27 @@ if portfolio is not None:
             f"{summary['Gamma']:,.4f}"
         )
 
-    c4,c5,c6 = st.columns(3)
+    c4, c5, c6 = st.columns(3)
 
     with c4:
         st.metric(
             "Vega (per +1 vol point)",
             format_dollar(summary["Vega"]),
-            help=("Approximate portfolio P&L when implied volatility increases by 1 vol point.")
+            help="Approximate portfolio P&L when implied volatility increases by 1 vol point."
         )
 
     with c5:
         st.metric(
             "Theta (per day)",
             format_dollar(summary["Theta"]),
-            help=("Approximate portfolio P&L from one calendar day passing.")
+            help="Approximate portfolio P&L from one calendar day passing."
         )
 
     with c6:
         st.metric(
             "Rho (per +100 bps)",
             format_dollar(summary["Rho"]),
-            help=("Approximate portfolio P&L if the risk-free rate increases by 100 bps.")
+            help="Approximate portfolio P&L if the risk-free rate increases by 100 bps."
         )
 
     st.subheader("Position Breakdown")
@@ -244,14 +380,14 @@ if portfolio is not None:
 
     st.subheader("Scenario Analysis")
 
-    c1,c2,c3,c4 = st.columns(4)
+    c1, c2, c3, c4 = st.columns(4)
 
     with c1:
         spot_shock_pct = st.number_input(
             "Spot Shock (%)",
             value=-10.0,
             step=1.0,
-            help=("Percentage shock applied to the underlying price.")
+            help="Percentage shock applied to the underlying price."
         )
 
     with c2:
@@ -259,7 +395,7 @@ if portfolio is not None:
             "Vol Shock (vol points)",
             value=5.0,
             step=1.0,
-            help=("Absolute change in implied volatility.")
+            help="Absolute change in implied volatility."
         )
 
     with c3:
@@ -267,7 +403,7 @@ if portfolio is not None:
             "Rate Shock (bps)",
             value=100.0,
             step=25.0,
-            help=("Interest rate shock in basis points.")
+            help="Interest rate shock in basis points."
         )
 
     with c4:
@@ -276,7 +412,7 @@ if portfolio is not None:
             min_value=0,
             value=5,
             step=1,
-            help=("Number of calendar days to roll the portfolio forward.")
+            help="Number of calendar days to roll the portfolio forward."
         )
 
     spot_change = spot_shock_pct / 100
@@ -312,7 +448,7 @@ if portfolio is not None:
 
     st.subheader("Scenario Results")
 
-    c1,c2,c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
     with c1:
         st.metric(
@@ -355,12 +491,12 @@ if portfolio is not None:
                 )
             )
 
-    c1,c2,c3 = st.columns(3)
+    c1, c2, c3 = st.columns(3)
 
     c1.metric(
         "Volatility shock",
         f"{vol_shock_points:+.1f} vol pts",
-        help = (f"The shock is applied to every contract's market implied volatility.")
+        help=f"The shock is applied to every contract's market implied volatility."
     )
 
     c2.metric(
@@ -375,7 +511,7 @@ if portfolio is not None:
     c3.metric(
         "Time Forward",
         f"{days_forward} days",
-        help=("Number of calendar days moved forward in the scenario.")
+        help="Number of calendar days moved forward in the scenario."
     )
 
     stressed_rates = full_repricing["Stressed Rates"]
@@ -388,7 +524,7 @@ if portfolio is not None:
                 f"**{expiry}**: "
                 f"{base_rates[expiry]:.2%} → "
                 f"{stressed_rates[expiry]:.2%}"
-    )
+            )
 
     with st.expander("Implied Volatility by Contract"):
         base_vols = full_repricing["Base Vols"]
@@ -475,7 +611,7 @@ if portfolio is not None:
     fig.update_layout(
         title="Greek P&L Attribution",
         xaxis_title="Risk Factor",
-        yaxis_title = "P&L ($)",
+        yaxis_title="P&L ($)",
         showlegend=False,
         height=500
     )
@@ -535,7 +671,7 @@ if portfolio is not None:
     )
 
     spot_shocks = np.arange(-20, 21, 5)
-    vol_shocks = np.arange(-10,16,5)
+    vol_shocks = np.arange(-10, 16, 5)
 
     heatmap_values = []
 
@@ -544,7 +680,7 @@ if portfolio is not None:
 
         for spot_shock in spot_shocks:
 
-            invalid_vol = any(base_vol + (vol_shock/100) <=0 for base_vol in vols_by_contract.values())
+            invalid_vol = any(base_vol + (vol_shock/100) <= 0 for base_vol in vols_by_contract.values())
             if invalid_vol:
                 row.append(np.nan)
                 continue
