@@ -148,13 +148,20 @@ if input_method == "Build Portfolio":
     if not selection_chain.empty:
         available_contracts = selection_chain[selection_chain["otype"] == contract_otype].copy()
 
+        available_contracts = available_contracts[(available_contracts["moneyness"] >= 0.80)
+                                                  & (available_contracts["moneyness"] <= 1.20)]
+
         available_strikes = sorted(available_contracts["strike"].dropna().unique().tolist())
 
     with c2:
         contract_strike = st.selectbox(
             "Strike",
             options=available_strikes,
-            key="contract_strike"
+            key="contract_strike",
+            help=("""
+            Available strikes are limited to 80%-120% moneyness. Extreme OTM/ITM contracts are excluded
+            because implied volatility estimation can become unstable when Vega is very small.
+            """)
         )
 
     with c3:
