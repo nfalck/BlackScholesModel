@@ -4,33 +4,33 @@
 A Streamlit application for option pricing, Greeks, implied volatility, and portfolio-level risk analysis using the Black Scholes model. The project combines live market data with scenario analysis and full portfolio repricing.
 ## Features
 
-![image](demoimage.png)
+![image](images/demoimage.png)
 - Retrieve live underlying price and risk-free rate from Yahoo Finance by selecting ticker
 - Option to manually input underlying price, time and risk-free rate
 - Choose strike price and volatility and retrieve call value, put value and greeks
 
-![image](demoimage2.png)
+![image](images/demoimage2.png)
 - Choose market price and tolerance
 - Calculate implied volatility and compare with your volatility
 
-![image](portfoliodemo1.png)
+![image](images/portfoliodemo1.png)
 - Upload an options portfolio from CSV or create the portfolio directly with the builder
 - Retrieve live spot prices for the underlying assets
 - Use maturity specific risk-free rates
 - Derive contract specific implied volatility from live option chain prices
 
-![image](portfoliodemo2.png)
+![image](images/portfoliodemo2.png)
 - Calculate portfolio market value and aggregate Delta, Gamma, Vega, Theta and Rho
 - Display a position-level breakdown of prices, market inputs, values and Greeks
 
-![image](portfoliodemo3.png)
+![image](images/portfoliodemo3.png)
 - Apply spot, volatility, interest rate and time-forward stress scenarios
 - Compare Greek P&L approximation with full Black Scholes repricing
 
-![image](portfoliodemo4.png)
+![image](images/portfoliodemo4.png)
 - Break approximate scenario P&L into Delta, Gamma, Vega, Theta and Rho contributions
 
-![image](portfoliodemo5.png)
+![image](images/portfoliodemo5.png)
 - Visualize scenario exposure with an interactive Spot x Volatility P&L heatmap
 
 ## Demo
