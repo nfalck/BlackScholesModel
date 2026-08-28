@@ -63,7 +63,7 @@ default_portfolio = pd.DataFrame(
         {
             "ticker": "AAPL",
             "otype": "call",
-            "strike": 230.0,
+            "strike": 240.0,
             "expiry": "2027-01-15",
             "quantity": 10,
             "multiplier": 100
