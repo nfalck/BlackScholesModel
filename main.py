@@ -42,7 +42,8 @@ with st.sidebar:
     ticker = st.text_input("Ticker", "AAPL").strip().upper()
     expiry = st.text_input("Expiry (YYYY-MM-DD)", "2027-12-19").strip()
     K = st.number_input("Strike K", value=200.0, min_value=0.01, step=1.0, format="%.2f")
-    vol_guess = st.number_input("Volatility σ (annual, decimal)", value=0.25, min_value=0.0001, step=0.01, format="%.4f")
+    vol_guess = st.number_input("Volatility σ (annual, decimal)", value=0.25,
+                                min_value=0.0001, step=0.01, format="%.4f")
 
     # Ability to manually input S and T if advanced mode is chosen
     if advanced:
@@ -53,14 +54,15 @@ with st.sidebar:
 
     # Ability to manually input the risk-free rate if chosen
     if manual_r:
-        r_override = st.number_input("Risk-free rate r (annual, decimal, manual)", value=0.02, step=0.001, format="%.6f")
+        r_override = st.number_input("Risk-free rate r (annual, decimal, manual)",
+                                     value=0.02, step=0.001, format="%.6f")
 
 # Black-Scholes Initialization & Creation of Needed Variables for Calculation
 try:
     bs = BlackScholes(ticker=ticker, expiry=expiry)
     if advanced:
         S = float(S_manual)
-        T = max(1e-12, float(T_manual)) # to avoid div by 0
+        T = max(1e-12, float(T_manual))  # to avoid div by 0
         if manual_r:
             r = float(r_override)
         else:
@@ -176,7 +178,7 @@ for greek, symbol, unit in [
                 f"for +1% rates"
             )
 
-    c1, c2, c3 = st.columns([1,1.5,1.5])
+    c1, c2, c3 = st.columns([1, 1.5, 1.5])
 
     with c1:
         st.markdown(
@@ -237,7 +239,7 @@ if market_call_price > 0:
 if market_put_price > 0:
     try:
         iv_put = implied_vol_newton(bs=bs, otype="put", market_price=market_put_price, S=S, K=K, T=T, r=r,
-                                     initial_vol=float(vol_guess), tol=iv_tol)
+                                    initial_vol=float(vol_guess), tol=iv_tol)
     except Exception as e:
         st.error(f"Put IV calculation failed: {e}")
 
@@ -246,6 +248,7 @@ c1_iv_res, c2_iv_res, c3_iv_res = st.columns(3)
 c1_iv_res.metric("Your σ (input)", f"{float(vol_guess):.4f}")
 c2_iv_res.metric("Implied σ (Call)", f"{iv_call:.4f}" if iv_call is not None else "—")
 c3_iv_res.metric("Implied σ (Put)",  f"{iv_put:.4f}" if iv_put is not None else "—")
+
 
 # Plotting the Results for Further Visualization
 def plot_newton(if_call: bool, market_price: float, iv_solved: float, title_suffix: str):
@@ -258,11 +261,12 @@ def plot_newton(if_call: bool, market_price: float, iv_solved: float, title_suff
     title_suffix (str): suffix to add in plot depending if option is call or put
     """
     # Creation of Several Volatilities to Extend the Curve
-    s_guess = max([x for x in [float(vol), iv_solved or 0] if x is not None] + [0.25])
-    sigma_min = 0.01 # start at 1%
-    sigma_max = max(2.0 * vol_guess, (iv_solved or 0) * 1.5, 1.0) # largest of user's guess or 1.5 x IV to extend the curve
-    sigma_max = min(sigma_max, 5.0) # cap at 500%
-    sigmas = np.linspace(sigma_min, sigma_max, 240) # array of evenly spaced numbers between min and max vol, 240 values
+    sigma_min = 0.01  # start at 1%
+    sigma_max = max(2.0 * vol_guess,
+                    (iv_solved or 0) * 1.5, 1.0)  # largest of user's guess or 1.5 x IV to extend the curve
+    sigma_max = min(sigma_max, 5.0)  # cap at 500%
+    sigmas = np.linspace(sigma_min,
+                         sigma_max, 240)  # array of evenly spaced numbers between min and max vol, 240 values
 
     # Calculate Prices for Various Volatilities and Plot BS Curve
     if if_call:
@@ -281,9 +285,11 @@ def plot_newton(if_call: bool, market_price: float, iv_solved: float, title_suff
         ax.axvline(iv_solved * 100.0, linestyle="--", color="green", label=f"Implied Vol = {iv_solved:.4f}")
         # Dot at where IV and market price meets (red)
         if if_call:
-            ax.scatter([iv_solved * 100.0], [bs.quote(S=S, T=T, r=r, K=K, vol=iv_solved)["prices"]["call"]], color="red", zorder=3, label="Calc. Price")
+            ax.scatter([iv_solved * 100.0], [bs.quote(S=S, T=T, r=r, K=K, vol=iv_solved)["prices"]["call"]],
+                       color="red", zorder=3, label="Calc. Price")
         else:
-            ax.scatter([iv_solved * 100.0], [bs.quote(S=S, T=T, r=r, K=K, vol=iv_solved)["prices"]["put"]], color="red", zorder=3, label="Calc. Price")
+            ax.scatter([iv_solved * 100.0], [bs.quote(S=S, T=T, r=r, K=K, vol=iv_solved)["prices"]["put"]],
+                       color="red", zorder=3, label="Calc. Price")
     # Also show vertical line of user input of volatility as a reference
     ax.axvline(float(vol) * 100.0, linestyle=":", label=f"Your Vol = {float(vol):.4f}")
 
@@ -293,6 +299,7 @@ def plot_newton(if_call: bool, market_price: float, iv_solved: float, title_suff
     ax.legend()
     st.pyplot(fig, clear_figure=True)
 
+
 # To Show on Streamlit
 call_plot, put_plot = st.columns(2)
 if market_call_price > 0:
@@ -301,4 +308,3 @@ if market_call_price > 0:
 if market_put_price > 0:
     with put_plot:
         plot_newton(False, market_put_price, iv_put, "PUT")
-
