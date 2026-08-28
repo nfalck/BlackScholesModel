@@ -63,7 +63,7 @@ default_portfolio = pd.DataFrame(
         {
             "ticker": "AAPL",
             "otype": "call",
-            "strike": 200.0,
+            "strike": 230.0,
             "expiry": "2027-01-15",
             "quantity": 10,
             "multiplier": 100
@@ -215,7 +215,7 @@ if input_method == "Build Portfolio":
 
     if st.button("Reset to Default Portfolio"):
         st.session_state.portfolio_df = default_portfolio.copy()
-
+    # Portfolio Builder
     edited_df = st.data_editor(
         st.session_state.portfolio_df,
         num_rows="dynamic",
@@ -276,6 +276,7 @@ else:
             st.error(f"Could not load portfolio: {e}")
             st.stop()
 
+# Retrieve Market Data
 if portfolio is not None:
 
     tickers = sorted({position.ticker for position in portfolio.positions})
@@ -309,6 +310,7 @@ if portfolio is not None:
         st.error(f"Could not retrieve market implied volatility: {e}")
         st.stop()
 
+# Display Market Data
     st.subheader("Market Data")
 
     cols = st.columns(len(tickers))
@@ -318,7 +320,7 @@ if portfolio is not None:
                 f"{ticker} Spot",
                 f"${spot_prices[ticker]:,.2f}"
             )
-
+# Retrieve the Greeks and IV
     if portfolio is not None:
         try:
             evaluated = portfolio.evaluate(spot_prices=spot_prices, rates_by_expiry=rates_by_expiry,
@@ -330,6 +332,7 @@ if portfolio is not None:
             st.error(f"Error loading portfolio: {e}")
             st.stop()
 
+# Display the Greeks
     st.subheader("Portfolio Risk")
     c1, c2, c3 = st.columns(3)
 
@@ -375,6 +378,7 @@ if portfolio is not None:
             help="Approximate portfolio P&L if the risk-free rate increases by 100 bps."
         )
 
+# Breakdown by Position
     st.subheader("Position Breakdown")
 
     df = pd.DataFrame(evaluated)
@@ -385,10 +389,12 @@ if portfolio is not None:
         hide_index=True
     )
 
+# Scenario Analysis
     st.subheader("Scenario Analysis")
 
     c1, c2, c3, c4 = st.columns(4)
 
+    # User controls
     with c1:
         spot_shock_pct = st.number_input(
             "Spot Shock (%)",
@@ -426,6 +432,7 @@ if portfolio is not None:
     vol_change = vol_shock_points / 100
     rate_change = rate_shock_bps / 10000
 
+# Run scenarios
     full_repricing = run_scenario(
         portfolio=portfolio,
         spot_prices=spot_prices,
@@ -446,6 +453,7 @@ if portfolio is not None:
         days_forward=days_forward
     )
 
+# Calculate the difference between approximation and full repricing
     absolute_error = (approximation["Total PnL"] - full_repricing["PnL"])
 
     if full_repricing["PnL"] != 0:
@@ -453,6 +461,7 @@ if portfolio is not None:
     else:
         percentage_error = 0.0
 
+# Display scenario results
     st.subheader("Scenario Results")
 
     c1, c2, c3 = st.columns(3)
@@ -477,6 +486,7 @@ if portfolio is not None:
 
     st.divider()
 
+# Display the stressed market conditions in the scenario
     st.caption("Stressed Market Conditions")
 
     st.caption("Underlying Prices")
@@ -559,6 +569,7 @@ if portfolio is not None:
 
     st.divider()
 
+# Display Greek P&L Contribution in the scenario
     st.subheader("Greek P&L Contribution")
 
     pnl_breakdown = pd.DataFrame({
@@ -590,18 +601,14 @@ if portfolio is not None:
     risk_factors = pnl_breakdown["Risk Factor"].tolist()
     pnl_values = pnl_breakdown["PnL"].tolist()
 
-    bar_colors = [
-        "#2ECC71" if value >= 0 else "#E74C3C"
-        for value in pnl_values
-    ]
-
     fig = go.Figure()
 
     fig.add_trace(
         go.Bar(
             x=risk_factors,
             y=pnl_values,
-            marker_color=bar_colors,
+            marker_color=["#2ECC71" if value >= 0 else "#E74C3C"
+                          for value in pnl_values],
             text=[
                 format_dollar(value)
                 for value in pnl_values
@@ -671,6 +678,79 @@ if portfolio is not None:
 
     st.divider()
 
+# Display the risk contributions (position-level)
+    st.subheader("Risk Contributions")
+    st.caption("Position-level contribution to total portfolio Greek exposure.")
+
+    risk_metric = st.selectbox(
+        "Risk Measure",
+        options=["Delta", "Gamma", "Vega", "Theta", "Rho"]
+    )
+
+    risk_df = pd.DataFrame(evaluated).copy()
+
+    risk_df["Position"] = (
+        risk_df["Ticker"]
+        + " "
+        + risk_df["Strike"].astype(str)
+        + " "
+        + risk_df["Type"]
+        + " | "
+        + risk_df["Expiry"]
+    )
+
+    risk_labels = {
+        "Delta": "Delta (share-equivalent)",
+        "Gamma": "Gamma (Delta change per $1 underlying move)",
+        "Vega": "Vega ($ per +1 vol point)",
+        "Theta": "Theta ($ per day)",
+        "Rho": "Rho ($ per +100 bps)"
+    }
+
+    risk_fig = px.bar(
+        risk_df,
+        x="Position",
+        y=risk_metric,
+        title=f"{risk_metric} Contribution by Position",
+        hover_data={
+            "Ticker": True,
+            "Type": True,
+            "Strike": ":.2f",
+            "Expiry": True,
+            "Quantity": True,
+            risk_metric: ":.4f"
+        }
+    )
+
+    risk_fig.add_hline(y=0, line_dash="dash")
+
+    risk_fig.update_layout(
+        height=450,
+        showlegend=False,
+        xaxis_title="Position",
+        yaxis_title=risk_metric
+    )
+
+    risk_fig.update_yaxes(
+        title_text=risk_labels[risk_metric]
+    )
+
+    risk_contributors = risk_df[["Position", risk_metric]].copy()
+
+    risk_contributors["Absolute Exposure"] = (risk_contributors[risk_metric].abs())
+
+    risk_contributors = (risk_contributors
+                         .sort_values("Absolute Exposure", ascending=False)
+                         .drop(columns=["Absolute Exposure"]))
+
+    st.dataframe(risk_contributors, hide_index=True, width="stretch")
+
+    st.plotly_chart(risk_fig, width="stretch")
+    st.caption(
+        "Position Greeks include contract quantity and the standard 100-share option multiplier."
+    )
+
+# Create and display spot x volatility stress map
     st.subheader("Spot x Volatility Stress Map")
 
     st.caption(
