@@ -11,16 +11,21 @@ st.caption("View option-chain implied volatility, smile and skew.")
 
 # Cache data to help with Yahoo Finance's rate limits
 st.cache_data(ttl=3600)
+
+
 def cached_expiries(ticker: str):
     return get_expiries(ticker)
+
 
 @st.cache_data(ttl=900)
 def cached_option_chain(ticker: str, expiry: str):
     return get_option_chain(ticker=ticker, expiry=expiry)
 
+
 @st.cache_data(ttl=3600)
 def cached_risk_free_rate(T: float):
     return get_risk_free_rate(T)
+
 
 @st.cache_data(ttl=900)
 def cached_iv_chain(ticker: str, expiry: str, r: float, max_bid_ask_pct: float, min_open_interest: int):
@@ -61,15 +66,16 @@ def cached_iv_chain(ticker: str, expiry: str, r: float, max_bid_ask_pct: float, 
 
     return iv_chain, quote_stats
 
+
 st.subheader("Option Chain")
 
 # Ticker selection
-c1,c2 = st.columns(2)
+c1, c2 = st.columns(2)
 with c1:
     ticker = st.text_input("Ticker",
-                       value="AAPL",
-                       help="Underlying ticker symbol."
-                       ).strip().upper()
+                           value="AAPL",
+                           help="Underlying ticker symbol."
+                           ).strip().upper()
 
 if not ticker:
     st.info("Enter a ticker to begin.")
@@ -91,7 +97,7 @@ with c2:
 
 # Data cleaning controls
 with st.expander("Quality Filters"):
-    c1,c2 = st.columns(2)
+    c1, c2 = st.columns(2)
 
     with c1:
         max_spread_pct = st.slider(
@@ -125,17 +131,18 @@ except Exception as e:
 # Create IV chain
 try:
     iv_chain, quote_stats = cached_iv_chain(ticker=ticker,
-                               expiry=expiry,
-                               r=r,
-                               max_bid_ask_pct=max_bid_ask_pct,
-                               min_open_interest=min_open_interest)
+                                            expiry=expiry,
+                                            r=r,
+                                            max_bid_ask_pct=max_bid_ask_pct,
+                                            min_open_interest=min_open_interest)
 except Exception as e:
     st.error(f"Could not build implied-volatility chain: {e}")
     st.stop()
 
 # Warning of stale/unavailable option quotes
 if quote_stats["zero_quote_pct"] > 0.50:
-    st.warning(f"{quote_stats['zero_quote_pct']:.0%} of listed contracts currently have bid = 0 and ask = 0. Option quotes may be stale or unavailable outside the underlying market's regular trading hours.")
+    st.warning(f"{quote_stats['zero_quote_pct']:.0%} of listed contracts currently have bid = 0 and ask = 0. "
+               f"Option quotes may be stale or unavailable outside the underlying market's regular trading hours.")
     st.caption(f"Listed contracts: {quote_stats['raw_contracts']}\n"
                f"Active quotes: {quote_stats['active_quotes']}\n"
                f"Zero bid/ask: {quote_stats['zero_quotes']}")
@@ -148,7 +155,7 @@ if iv_chain.empty:
 spot = float(iv_chain["spot"].iloc[0])
 
 st.subheader("Market Overview")
-c1,c2,c3,c4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.metric(
         "spot",
@@ -177,7 +184,7 @@ except Exception as e:
     st.stop()
 
 st.subheader("Volatility Skew")
-c1,c2,c3 = st.columns(3)
+c1, c2, c3 = st.columns(3)
 
 with c1:
     st.metric(
@@ -202,7 +209,7 @@ with c3:
 
 # Smile display
 st.subheader("Implied Volatility Smile")
-c1,c2 = st.columns(2)
+c1, c2 = st.columns(2)
 
 with c1:
     x_axis = st.radio(
